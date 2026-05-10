@@ -16,6 +16,9 @@
     <script>dayjs.extend(window.dayjs_plugin_isBetween);dayjs.extend(window.dayjs_plugin_customParseFormat);</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.2/Recharts.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -276,6 +279,23 @@
 <div id="root"><div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#484f58;"><div style="text-align:center;"><div class="spin" style="width:34px;height:34px;border:3px solid #21262d;border-top-color:#22c55e;border-radius:50%;margin:0 auto 12px;"></div><p style="font-size:13px;">Loading SpendWise…</p></div></div></div>
 <script>window.onerror=(m,u,l)=>{const d=document.getElementById('err');d.style.display='block';d.textContent=`Error: ${m} (line ${l})`;}</script>
 <script type="text/babel">
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBNpStUt4Q-dM5VS5GxH69fhTDLqlDn-I0",
+  authDomain: "spend-wise-84916.firebaseapp.com",
+  databaseURL: "https://spend-wise-84916-default-rtdb.firebaseio.com",
+  projectId: "spend-wise-84916",
+  storageBucket: "spend-wise-84916.firebasestorage.app",
+  messagingSenderId: "977459123197",
+  appId: "1:977459123197:web:188254fd127bcc89e6ff94",
+  measurementId: "G-YDCJ9KX28E"
+};
+
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.firestore();
+const auth = firebase.auth();
 const {useState,useEffect,useMemo,useCallback,useRef}=React;
 const {ResponsiveContainer,BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip,LineChart,Line,Cell,Legend}=window.Recharts;
 
@@ -438,8 +458,88 @@ function SC({label,value,color,icon,sub,onClick,active,cls}){
     </div>;
 }
 
+// ── AuthUI ────────────────────────────────────────────────────────────────────
+function AuthUI({onGuest}){
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const submit = async e => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            if (isLogin) {
+                await auth.signInWithEmailAndPassword(email, password);
+            } else {
+                await auth.createUserWithEmailAndPassword(email, password);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',padding:16}}>
+        <div className="card" style={{width:'100%',maxWidth:420,padding:32,animation:'slideUp .4s cubic-bezier(.16,1,.3,1) both'}}>
+            <div style={{display:'flex',justifyContent:'center',marginBottom:24}}>
+                <div style={{width:48,height:48,background:'rgba(34,197,94,.15)',border:'1px solid rgba(34,197,94,.25)',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',color:'var(--green)'}}>
+                    {IC.wallet}
+                </div>
+            </div>
+            <h2 style={{textAlign:'center',fontSize:24,fontWeight:800,letterSpacing:'-0.03em',marginBottom:8}}>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
+            <p style={{textAlign:'center',color:'var(--tx3)',fontSize:14,marginBottom:32}}>
+                {isLogin ? 'Enter your details to access your dashboard.' : 'Sign up to start tracking your finances securely.'}
+            </p>
+
+            {error && <div style={{background:'rgba(239,68,68,.12)',color:'#f87171',padding:12,borderRadius:8,fontSize:13,marginBottom:20,border:'1px solid rgba(239,68,68,.3)'}}>{error}</div>}
+
+            <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
+                <div>
+                    <Lbl t="Email Address" />
+                    <input className="field" type="email" required placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} disabled={loading}/>
+                </div>
+                <div>
+                    <Lbl t="Password" />
+                    <input className="field" type="password" required placeholder={isLogin ? "••••••••" : "At least 6 characters"} minLength={6} value={password} onChange={e=>setPassword(e.target.value)} disabled={loading}/>
+                </div>
+                <Btn v="ok" type="submit" full disabled={loading} style={{marginTop:8,padding:'12px'}}>
+                    {loading ? <span className="spin" style={{width:16,height:16,border:'2px solid #fff',borderTopColor:'transparent',borderRadius:'50%',display:'inline-block'}}></span> : (isLogin ? 'Sign In' : 'Sign Up')}
+                </Btn>
+            </form>
+
+            <div style={{marginTop:24,textAlign:'center',fontSize:13,color:'var(--tx3)'}}>
+                {isLogin ? "Don't have an account? " : "Already have an account? "}
+                <button type="button" onClick={() => {setIsLogin(!isLogin); setError('');}} style={{background:'none',border:'none',color:'var(--green)',fontWeight:700,cursor:'pointer',padding:0}}>
+                    {isLogin ? 'Sign Up' : 'Sign In'}
+                </button>
+            </div>
+            <div style={{marginTop:16,textAlign:'center',fontSize:13,color:'var(--tx3)'}}>
+                <button type="button" onClick={onGuest} style={{background:'none',border:'none',color:'var(--tx2)',fontWeight:600,cursor:'pointer',padding:0,textDecoration:'underline'}}>
+                    Continue as Guest
+                </button>
+            </div>
+        </div>
+    </div>;
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
+    const [user, setUser] = useState(null);
+    const [authLoaded, setAuthLoaded] = useState(false);
+    const [isGuest, setIsGuest] = useState(false);
+    
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(u => {
+            setUser(u);
+            setAuthLoaded(true);
+        });
+        return () => unsubscribe();
+    }, []);
+
     const [splash,setSplash]=useState(true);
     const [txs,setTxs]=useState([]);
     const [goals,setGoals]=useState([]);
@@ -466,24 +566,49 @@ function App(){
     useEffect(()=>{const t=setTimeout(()=>setSplash(false),2800);return()=>clearTimeout(t);},[]);
     useEffect(()=>{const h=e=>{if((e.key==='n'&&(e.ctrlKey||e.metaKey))||e.key==='+'){e.preventDefault();setETx({walletId:aw});setModal('tx');}if(e.key==='Escape')setModal(null);};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[aw]);
 
-    useEffect(()=>{
-        try{const r=localStorage.getItem(SK);if(!r)return;const p=JSON.parse(r);
-            if(p.txs){const seen=new Set();setTxs(p.txs.map(t=>{if(!t.id||seen.has(t.id)){const id=uid();seen.add(id);return{...t,id};}seen.add(t.id);return t;}));}
-            if(p.goals)setGoals(p.goals);
-            if(p.assets)setAssets(p.assets.map(a=>a.id?a:{...a,id:uid()}));
-            if(p.budgets)setBudgets(p.budgets);
-            if(p.wallets)setWallets(p.wallets);
-            if(p.debts)setDebts(p.debts.map(d=>d.id?d:{...d,id:uid()}));
-            if(p.savTgt)setSavTgt(p.savTgt);
-            if(p.aw)setAw(p.aw);
-            if(typeof p.dark!=='undefined')setDark(p.dark);
-        }catch(e){console.error(e);}
-    },[]);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-    useEffect(()=>{
-        localStorage.setItem(SK,JSON.stringify({txs,goals,assets,budgets,wallets,debts,savTgt,aw,dark}));
-        document.body.className=dark?'':'light';
-    },[txs,goals,assets,budgets,wallets,debts,savTgt,aw,dark]);
+    useEffect(() => {
+        if (!user) {
+            setTxs([]); setGoals([]); setAssets([]); setBudgets({}); 
+            setWallets([{id:'personal',name:'Personal',icon:'👤'},{id:'business',name:'Business',icon:'💼'}]);
+            setDebts([]); setSavTgt(0); setAw('personal');
+            if (isGuest) {
+                setIsLoaded(true);
+            } else {
+                setIsLoaded(false);
+            }
+            return;
+        }
+
+        const unsub = db.collection("users").doc(user.uid).onSnapshot((docSnap) => {
+            if (docSnap.exists) {
+                const p = docSnap.data();
+                if(p.txs){const seen=new Set();setTxs(p.txs.map(t=>{if(!t.id||seen.has(t.id)){const id=uid();seen.add(id);return{...t,id};}seen.add(t.id);return t;}));}
+                if(p.goals)setGoals(p.goals);
+                if(p.assets)setAssets(p.assets.map(a=>a.id?a:{...a,id:uid()}));
+                if(p.budgets)setBudgets(p.budgets);
+                if(p.wallets)setWallets(p.wallets);
+                if(p.debts)setDebts(p.debts.map(d=>d.id?d:{...d,id:uid()}));
+                if(p.savTgt)setSavTgt(p.savTgt);
+                if(p.aw)setAw(p.aw);
+                if(typeof p.dark!=="undefined")setDark(p.dark);
+            }
+            setIsLoaded(true);
+        }, (error) => {
+            console.error("Firebase read error:", error);
+            setIsLoaded(true);
+        });
+        return () => unsub();
+    }, [user, isGuest]);
+
+    useEffect(() => {
+        document.body.className = dark ? "" : "light";
+        if (!isLoaded || !user || isGuest) return;
+        db.collection("users").doc(user.uid).set({
+            txs, goals, assets, budgets, wallets, debts, savTgt, aw, dark
+        }, { merge: true }).catch(err => console.error("Firebase write error:", err));
+    }, [txs, goals, assets, budgets, wallets, debts, savTgt, aw, dark, isLoaded, user, isGuest]);
 
     const mS=useMemo(()=>dayjs(month).startOf('month'),[month]);
     const mE=useMemo(()=>dayjs(month).endOf('month'),[month]);
@@ -606,7 +731,8 @@ function App(){
     const cpRec=()=>{ const ex=new Set(mTxs.filter(t=>t.isRecurring).map(t=>t.description.toLowerCase()+'|'+t.amount)); const toAdd=txs.filter(t=>t.isRecurring&&(t.walletId||'personal')===aw&&!ex.has(t.description.toLowerCase()+'|'+t.amount)); if(!toAdd.length){alert('All recurring items already posted.');return;} setTxs(p=>[...toAdd.map(t=>({...t,id:uid(),date:dayjs(month).date(Math.min(dayjs(t.date).date(),dayjs(month).daysInMonth())).format('YYYY-MM-DD'),isPaid:false,datePaid:''})),...p]); alert(`Posted ${toAdd.length} recurring items.`); };
     const cpPrev=()=>{ const pm=dayjs(month).subtract(1,'month'); const items=txs.filter(t=>dayjs(t.date).isBetween(pm.startOf('month'),pm.endOf('month'),null,'[]')&&(t.type==='income'||t.type==='bill')); if(!items.length){alert('No income/bills in previous month.');return;} setTxs(p=>[...items.map(t=>({...t,id:uid(),date:dayjs(month).startOf('month').format('YYYY-MM-DD'),isPaid:false,datePaid:''})),...p]); alert(`Copied ${items.length} items.`); };
 
-    if(splash)return <Splash/>;
+    if(!authLoaded || splash)return <Splash/>;
+    if(!user && !isGuest) return <AuthUI onGuest={() => setIsGuest(true)}/>;
 
     // ── reusable blocks ───────────────────────────────────────────────────────
     const MonNav=()=><div style={{display:'flex',alignItems:'center',gap:2,background:'var(--surf)',border:'1px solid var(--bdr)',borderRadius:'var(--rs)',padding:3,flexShrink:0}}>
@@ -858,10 +984,16 @@ function App(){
             </div>
             <Btn v="ghost" full onClick={()=>setModal('wallet')}>{IC.plus} Add New Wallet</Btn>
         </div>
+        <div className="card" style={{padding:16}}>
+            <p className="slbl" style={{marginBottom:14}}>Account</p>
+            <div style={{display:'flex',flexDirection:'column',gap:9}}>
+                <Btn v="ghost" full onClick={() => {auth.signOut(); setIsGuest(false);}}>Log Out</Btn>
+            </div>
+        </div>
         <div className="card" style={{padding:16,borderColor:'rgba(239,68,68,.25)'}}>
             <p className="slbl" style={{marginBottom:5,color:'var(--red)'}}>Danger Zone</p>
             <p style={{fontSize:12,color:'var(--tx3)',marginBottom:12}}>This will permanently delete all your data. Export a backup first.</p>
-            <Btn v="bad" full onClick={()=>{if(confirm('⚠️ Are you sure? This deletes ALL data and cannot be undone. Export a backup first!')){localStorage.removeItem(SK);window.location.reload();}}}>{IC.trash} Reset All Data</Btn>
+            <Btn v="bad" full onClick={()=>{if(confirm('⚠️ Are you sure? This deletes ALL data and cannot be undone. Export a backup first!')){db.collection("users").doc(user.uid).delete().then(()=>auth.signOut());}}}>{IC.trash} Reset All Data</Btn>
         </div>
     </div>;
 
@@ -907,7 +1039,8 @@ function App(){
                             <div style={{height:1,background:'var(--bdr)',margin:'4px 0'}}/>
                             <label style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'9px 12px',cursor:'pointer',color:'var(--tx)',fontSize:13,fontWeight:500,borderRadius:9,transition:'background .1s'}} onMouseEnter={e=>e.currentTarget.style.background='var(--surf2)'} onMouseLeave={e=>e.currentTarget.style.background='none'}>{IC.ul} Import Backup<input type="file" accept=".json" onChange={e=>{restore(e);setToolsOpen(false);}} style={{display:'none'}}/></label>
                             <div style={{height:1,background:'var(--bdr)',margin:'4px 0'}}/>
-                            <button onClick={()=>{if(confirm('⚠️ Delete ALL data? Export a backup first!')){localStorage.removeItem(SK);window.location.reload();}setToolsOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'9px 12px',background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:13,fontWeight:600,borderRadius:9,transition:'background .1s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(239,68,68,.08)'} onMouseLeave={e=>e.currentTarget.style.background='none'}>{IC.trash} Reset All Data</button>
+                            <button onClick={()=>{auth.signOut();setIsGuest(false);setToolsOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'9px 12px',background:'none',border:'none',cursor:'pointer',color:'var(--tx)',fontSize:13,fontWeight:500,borderRadius:9,transition:'background .1s'}} onMouseEnter={e=>e.currentTarget.style.background='var(--surf2)'} onMouseLeave={e=>e.currentTarget.style.background='none'}>Log Out</button>
+                            <button onClick={()=>{if(confirm('⚠️ Delete ALL data? Export a backup first!')){if(user){db.collection("users").doc(user.uid).delete().then(()=>auth.signOut());}else{setIsGuest(false);}}setToolsOpen(false);}} style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'9px 12px',background:'none',border:'none',cursor:'pointer',color:'var(--red)',fontSize:13,fontWeight:600,borderRadius:9,transition:'background .1s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(239,68,68,.08)'} onMouseLeave={e=>e.currentTarget.style.background='none'}>{IC.trash} Reset All Data</button>
                         </div>}
                     </div>
                     {/* Add button — desktop */}
@@ -918,6 +1051,16 @@ function App(){
 
         {/* main */}
         <main style={{maxWidth:1400,margin:'0 auto',padding:'16px 16px 24px'}}>
+            {isGuest && <div style={{background:'rgba(56,139,253,.08)',border:'1px solid rgba(56,139,253,.2)',borderRadius:'var(--r)',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:16,flexWrap:'wrap'}}>
+                <div style={{display:'flex',gap:10,alignItems:'center'}}>
+                    <span style={{fontSize:18}}>👋</span>
+                    <div>
+                        <p style={{fontSize:13,color:'var(--blue)',fontWeight:700,marginBottom:2}}>You are browsing as a Guest</p>
+                        <p style={{fontSize:12,color:'var(--tx2)'}}>Your data is not saved. Create an account to permanently save your progress.</p>
+                    </div>
+                </div>
+                <Btn v="pri" sz="sm" onClick={() => setIsGuest(false)}>Create Account</Btn>
+            </div>}
             {mTxs.length===0&&txs.length>0&&<div style={{background:'rgba(34,197,94,.08)',border:'1px solid rgba(34,197,94,.2)',borderRadius:'var(--r)',padding:'13px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,flexWrap:'wrap',marginBottom:16}}>
                 <p style={{fontSize:13,color:'var(--green)',fontWeight:600,margin:0}}>Empty month — copy from last month?</p>
                 <div style={{display:'flex',gap:8}}><Btn v="ghost" sz="sm" onClick={cpRec}>Copy Recurring</Btn><Btn v="ok" sz="sm" onClick={cpPrev}>Copy Bills & Income</Btn></div>
